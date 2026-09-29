@@ -1,0 +1,142 @@
+[
+  {
+    "predicted_risk": 0.4647484949081065,
+    "predicted_label": 0,
+    "top_contributing_biomarkers": [
+      {
+        "biomarker": "PROT_032",
+        "risk_contribution": 0.0366
+      },
+      {
+        "biomarker": "PROT_026",
+        "risk_contribution": -0.0263
+      },
+      {
+        "biomarker": "TX_002",
+        "risk_contribution": 0.0203
+      },
+      {
+        "biomarker": "PROT_013",
+        "risk_contribution": -0.0144
+      },
+      {
+        "biomarker": "PROT_057",
+        "risk_contribution": -0.0134
+      }
+    ],
+    "true_diagnosis": 0,
+    "patient_row": 63
+  },
+  {
+    "predicted_risk": 0.4789980849186193,
+    "predicted_label": 0,
+    "top_contributing_biomarkers": [
+      {
+        "biomarker": "GEN_041",
+        "risk_contribution": 0.0669
+      },
+      {
+        "biomarker": "PROT_057",
+        "risk_contribution": 0.0247
+      },
+      {
+        "biomarker": "PROT_026",
+        "risk_contribution": -0.0139
+      },
+      {
+        "biomarker": "TX_013",
+        "risk_contribution": -0.0086
+      },
+      {
+        "biomarker": "PROT_013",
+        "risk_contribution": -0.0084
+      }
+    ],
+    "true_diagnosis": 0,
+    "patient_row": 70
+  },
+  {
+    "predicted_risk": 0.5529590542551426,
+    "predicted_label": 1,
+    "top_contributing_biomarkers": [
+      {
+        "biomarker": "PROT_013",
+        "risk_contribution": 0.0265
+      },
+      {
+        "biomarker": "TX_053",
+        "risk_contribution": 0.0185
+      },
+      {
+        "biomarker": "GEN_002",
+        "risk_contribution": -0.0168
+      },
+      {
+        "biomarker": "PROT_032",
+        "risk_contribution": 0.015
+      },
+      {
+        "biomarker": "PROT_026",
+        "risk_contribution": -0.0138
+      }
+    ],
+    "true_diagnosis": 0,
+    "patient_row": 95
+  },
+  {
+    "predicted_risk": 0.3438581118474553,
+    "predicted_label": 0,
+    "top_contributing_biomarkers": [
+      {
+        "biomarker": "PROT_057",
+        "risk_contribution": -0.0392
+      },
+      {
+        "biomarker": "PROT_013",
+        "risk_contribution": -0.0262
+      },
+      {
+        "biomarker": "PROT_059",
+        "risk_contribution": 0.0095
+      },
+      {
+        "biomarker": "GEN_002",
+        "risk_contribution": 0.0089
+      },
+      {
+        "biomarker": "PROT_046",
+        "risk_contribution": -0.0079
+      }
+    ],
+    "true_diagnosis": 0,
+    "patient_row": 60
+  },
+  {
+    "predicted_risk": 0.5101366520868199,
+    "predicted_label": 1,
+    "top_contributing_biomarkers": [
+      {
+        "biomarker": "PROT_013",
+        "risk_contribution": 0.0226
+      },
+      {
+        "biomarker": "TX_053",
+        "risk_contribution": 0.0101
+      },
+      {
+        "biomarker": "PROT_059",
+        "risk_contribution": 0.0086
+      },
+      {
+        "biomarker": "TX_025",
+        "risk_contribution": 0.0076
+      },
+      {
+        "biomarker": "PROT_026",
+        "risk_contribution": 0.005
+      }
+    ],
+    "true_diagnosis": 1,
+    "patient_row": 93
+  }
+]
