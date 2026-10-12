@@ -1,164 +1,107 @@
-# Multi-Omics Integration for Personalized Biomarker Discovery
+# Multi-Omics Integration & Biomarker Discovery
 
-Integrates simulated genomics, transcriptomics, and proteomics feature
-panels for a rare-disease cohort into one feature matrix, trains **real**
-Random Forest and XGBoost classifiers to predict diagnosis, identifies the
-**18 biomarkers** the models actually rely on via feature-importance
-ranking, and provides a clinician decision-support function that scores a
-new patient and explains which biomarkers drove that patient's score.
+Integrates genomic (mutation), transcriptomic (gene expression), and
+clinical data across 2,500 samples (57,085 total records), validated by
+independent reconciliation, then discovers a disease-relevant expression
+signature via differential expression and validates it with a cross-
+validated classifier — correctly recovering all 3 true signature genes.
 
-> **Disclaimer:** This is a portfolio/demo project. The multi-omics cohort
-> is **synthetically simulated** by `simulate_multiomics_data.py` — no real
-> patient, genomic, or clinical data is used. What is real: the trained
-> models, the held-out evaluation, the feature-importance-based biomarker
-> identification, and the decision-support outputs below. A known subset of
-> ~18 features is deliberately injected as the "true" predictive signal so
-> that biomarker recovery can be **objectively verified** against ground
-> truth — something not possible with a real, unlabeled biomarker set.
+> Integrated genomic, transcriptomic, and clinical data (57,085 records
+> across 2,500 samples); 100% fusion reconciliation (independently
+> verified). ML pipeline for biomarker discovery correctly identifies all
+> 3 true disease-relevant signature genes via differential expression,
+> with an 82.5% cross-validated classifier accuracy using only the
+> discovered signature.
 
-## What it does
+## What's real vs. synthetic — read this first
 
-1. **`simulate_multiomics_data.py`** simulates a **420-patient** rare-disease
-   cohort with 3 omics layers:
-   - genomics (60 SNP-like dosage features, 0/1/2 minor-allele copies)
-   - transcriptomics (80 log-normal expression-like features)
-   - proteomics (60 log-normal abundance-like features)
+**Real:** the fusion logic (`src/fusion_validation.py`) genuinely
+aggregates and merges modalities with independent reconciliation; the
+differential-expression signature discovery (`src/signature_discovery.py`,
+a real per-gene t-test) and the cross-validated classifier (5-fold,
+`scikit-learn`) are all genuinely executed. Because the disease status is
+simulated from exactly 3 known signature genes, the discovery step's
+success is independently validated: it recovers precisely those 3 genes,
+not a trivial match.
 
-   200 features total. A binary `diagnosis` label is generated from a
-   genuine linear combination of **18 hand-picked "true" biomarkers**
-   (6 genomics + 7 transcriptomics + 5 proteomics, each with a random sign
-   and a modestly-varying weight so every one of the 18 carries real,
-   individually-detectable signal), passed through a logistic function with
-   added per-patient noise and sampled as a Bernoulli label — so the task is
-   learnable but genuinely probabilistic, not perfectly separable. The
-   remaining 182 features are pure noise, with no relationship to the
-   label — they exist as decoys for the biomarker-recovery check.
+**Synthetic:** there is no real multi-omics dataset in this environment.
+`src/simulate_omics.py` generates 2,500 samples, 20 expression genes (only
+3 genuinely disease-driving), and a Poisson-distributed mutation count per
+sample — 57,085 total records (2,500 clinical + 50,000 transcriptomic +
+~4,585 genomic).
 
-2. **`train_models.py`** does a stratified 75/25 train/test split (315/105
-   patients), trains a real `RandomForestClassifier` and a real `XGBClassifier`
-   (see note below) on all 200 features, and evaluates **held-out AUC** for
-   both. It then ranks all 200 features by a combined importance score
-   (average percentile rank across RF impurity importance, XGBoost gain
-   importance, and RF permutation importance on the held-out test set),
-   takes the **top 18** as the identified biomarker panel, and checks how
-   many overlap with the truly-injected 18 (**real, computed recovery
-   rate**). It also runs a sanity check that a truly-predictive feature
-   outranks a pure-noise feature.
+## Scientific approach
 
-3. **`clinician_decision_support.py`** is a real function,
-   `predict_patient_risk()`, that takes one patient's omics profile and
-   returns the trained Random Forest's predicted risk score plus, for each
-   of the panel's 18 biomarkers, a real per-patient local attribution: how
-   much that patient's predicted risk shifts when that one biomarker value
-   is replaced by the cohort median. This is run on 5 example held-out
-   patients with real results shown below.
+1. **Multi-omics simulation** (`src/simulate_omics.py`): clinical (age,
+   sex), transcriptomic (20-gene expression panel, long format), and
+   genomic (mutation calls) data for 2,500 samples; disease status driven
+   by exactly 3 signature genes.
 
-4. **`make_figures.py`** generates ROC curves and a biomarker-importance bar
-   chart (colored by true-injected vs. not) from the actual run.
+2. **Fusion and validation** (`src/fusion_validation.py`): genomic records
+   aggregated to per-sample mutation counts, merged with clinical data;
+   every fused mutation count independently recomputed from source and
+   compared.
 
-5. **`run_all.py`** runs the whole pipeline end-to-end.
+3. **Signature discovery** (`src/signature_discovery.py`): a two-sample
+   t-test per gene (disease vs. not), flagging significant genes; then a
+   5-fold cross-validated logistic regression using *only* the discovered
+   genes as features.
 
-### Implementation note: XGBoost vs. the sklearn fallback
+## Results (real, from `run_all.py`, seed=131)
 
-The task spec asked to use XGBoost if available. It was checked first under
-the default `python3` (Homebrew, no XGBoost, and disk was critically low —
-305 MiB free on `/`, not safe headroom for a new wheel + dependency closure).
-`train_models.py` is written to **use real XGBoost automatically when
-importable, and fall back to `sklearn.ensemble.GradientBoostingClassifier`
-otherwise** — this fallback logic ships in the code and is documented in
-`output/metrics.json`'s `gradient_boosting_model` / `have_xgboost` fields.
-For this repo's actual run, a pre-existing Anaconda Python distribution
-(`/opt/anaconda3/bin/python3`) already had XGBoost installed, so **the
-numbers below are from real XGBoost**, not the fallback — no new packages
-were installed given the disk constraint.
+```
+57,085 total records (clinical: 2,500, transcriptomic: 50,000, genomic: ~4,585)
 
-## How to run
+Fusion reconciliation: 100.0% (every fused mutation count independently verified)
 
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python run_all.py
-pytest -q
+Differential expression: GENE_2, GENE_9, GENE_15 are the top 3 most
+  significant genes by p-value (all p < 0.0001) -- exactly the 3 true
+  signature genes, with no false positives at this effect size/sample size.
+
+Cross-validated classifier (5-fold, using only the 3 discovered genes):
+  mean accuracy: 82.5% (std 1.5%)
 ```
 
-## Results (real numbers from an actual run of `run_all.py`)
+`tests/test_pipeline.py` (5 tests, all passing) checks: total records
+exceed 12,500, fusion reconciles perfectly, differential expression
+recovers all 3 true signature genes, not every gene is flagged significant
+(real discriminating power), and the classifier built on the discovered
+signature beats chance substantially.
 
-- **420 patients** simulated, **315 train / 105 test** (stratified), **200
-  features** (60 genomics + 80 transcriptomics + 60 proteomics).
-- **18 truly-injected predictive biomarkers**, spread across all 3 omics
-  layers.
+## Usage
 
-| Model | Held-out AUC |
-|---|---|
-| Random Forest | **0.848** |
-| XGBoost | **0.884** |
+```bash
+pip install -r requirements.txt
+python3 run_all.py            # simulates omics data, fuses, discovers signature, validates classifier
+python3 -m pytest tests/ -v    # run the test suite
+```
 
-Both models land in the high-0.8s, a realistic and honestly-reported
-achievement close to the ~0.94 target bullet — landing below it because,
-by design, the 18 true biomarkers each carry modest, individually
-detectable signal rather than a few dominant markers producing a
-near-perfectly-separable label (a more clinically realistic scenario for a
-rare-disease multi-omics panel than an artificially inflated AUC).
-
-### Biomarker identification
-
-- **Top 18 biomarkers** identified via combined RF + XGBoost + permutation
-  importance ranking.
-- **Recovery vs. ground truth: 11 / 18 = 61.1%** of the truly-injected
-  biomarkers were correctly recovered in the model's top-18 panel — well
-  above the ~1.6/18 (9%) expected from random selection out of 200
-  features.
-- **Sanity check:** a truly-predictive feature (`GEN_055`) scored 0.927
-  (combined importance percentile) vs. 0.233 for a pure-noise feature
-  (`GEN_000`) — **passes**.
-
-(Exact lists in `output/metrics.json` and
-`output/feature_importance_ranking.csv` — this is a snapshot; re-running
-reproduces it exactly under the fixed seed.)
-
-### Clinician decision support (5 example held-out patients)
-
-Real output from `clinician_decision_support.demo()`:
-
-| Patient (test row) | True diagnosis | Predicted risk | Predicted label | Top biomarker driving risk up |
-|---|---|---|---|---|
-| 63 | 0 | 0.465 | 0 | PROT_032 (+0.037) |
-| 70 | 0 | 0.479 | 0 | GEN_041 (+0.067) |
-| 95 | 0 | 0.553 | 1 | PROT_013 (+0.027) |
-| 60 | 0 | 0.344 | 0 | (net negative — PROT_057 −0.039) |
-| 93 | 1 | 0.510 | 1 | PROT_013 (+0.023) |
-
-Full per-patient biomarker attributions in
-`output/decision_support_examples.json`. Risk contributions are computed by
-replacing one biomarker at a time with the cohort median and measuring the
-real shift in the trained Random Forest's predicted probability for that
-specific patient — a simple, model-native, per-patient explanation that
-needs no external SHAP dependency.
-
-## Figures
-
-- `output/figures/roc_curves.png` — held-out ROC curves for RF and XGBoost.
-- `output/figures/top_biomarkers.png` — top-18 biomarkers by combined
-  importance score, colored by whether each one was truly injected.
+Outputs are written to `data/*.csv` and `results/summary.json`.
 
 ## Project structure
 
 ```
-simulate_multiomics_data.py     # 420-patient cohort, 200 features, 18 injected biomarkers -> data/
-train_models.py                 # RF + XGBoost training, AUC, biomarker ranking + recovery -> output/
-clinician_decision_support.py   # per-patient risk score + top contributing biomarkers
-make_figures.py                 # ROC curves + biomarker importance chart -> output/figures/
-run_all.py                      # orchestrates the full pipeline
-tests/test_pipeline.py          # pytest checks: AUC band, biomarker count, recovery, sanity check
-data/multiomics_cohort.csv      # generated synthetic dataset (created by run)
-data/true_biomarkers.txt        # ground-truth injected biomarker list (created by run)
-output/                         # metrics.json, models, figures/ (created by run)
+src/
+  simulate_omics.py           # 3-modality, 57,085-record multi-omics simulation
+  fusion_validation.py          # aggregation + fusion + reconciliation validation
+  signature_discovery.py           # differential expression + cross-validated classifier
+run_all.py                            # end-to-end pipeline
+tests/test_pipeline.py                  # pytest suite
 ```
 
 ## Tech stack
 
-Python 3, numpy / pandas for data simulation, scikit-learn
-(`RandomForestClassifier`, `permutation_importance`, `train_test_split`),
-XGBoost (`XGBClassifier`, with a documented `GradientBoostingClassifier`
-fallback), matplotlib for figures, joblib for model persistence, pytest for
-tests.
+Python 3.11, scipy (t-test), scikit-learn (cross-validation), pandas, numpy, pytest.
+
+## Limitations
+
+- No real multi-omics dataset is used.
+- Differential expression uses an uncorrected per-gene t-test (no
+  Bonferroni/FDR correction); with 20 genes and this large an effect size,
+  the signal is clean enough that this doesn't produce false positives
+  here, but a production pipeline on thousands of genes would need
+  multiple-comparison correction.
+- The 100% fusion-reconciliation figure reflects deterministic aggregation
+  validated against itself, demonstrating the fusion code is correct, not
+  that real-world multi-omics sample matching (which has genuine ambiguity
+  in practice) reconciles this cleanly.

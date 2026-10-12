@@ -1,34 +1,49 @@
-"""
-run_all.py
+"""End-to-end: simulate multi-omics data, fuse and validate, run
+differential expression signature discovery, and cross-validate a
+classifier on the discovered signature."""
+import json
+import os
 
-Runs the full pipeline end-to-end:
-  1. Simulate integrated multi-omics cohort data -> data/
-  2. Train RF + XGBoost/GB models, real AUC + biomarker identification -> output/
-  3. Run clinician decision-support demo on held-out patients -> output/
-  4. Generate figures -> output/figures/
+from src.simulate_omics import simulate_all
+from src.fusion_validation import fuse, validate_fusion
+from src.signature_discovery import differential_expression, signature_recovery, cross_validated_classifier
 
-Run with:  python run_all.py
-"""
+os.makedirs("data", exist_ok=True)
+os.makedirs("results", exist_ok=True)
 
-import simulate_multiomics_data
-import train_models
-import clinician_decision_support
-import make_figures
+print("=== Simulating multi-omics data (clinical, transcriptomic, genomic) ===")
+data = simulate_all()
+total_records = sum(len(df) for df in data.values())
+for name, df in data.items():
+    df.to_csv(f"data/{name}.csv", index=False)
+    print(f"  {name}: {len(df)} records")
+print(f"Total records: {total_records}")
 
+print("\n=== Fusing and validating ===")
+fused = fuse(data)
+validation = validate_fusion(data, fused)
+print(validation)
 
-def main():
-    print("--- Simulating integrated multi-omics cohort ---")
-    simulate_multiomics_data.main()
+print("\n=== Differential expression signature discovery ===")
+de = differential_expression(data["transcriptomic"], data["clinical"])
+print(de)
+recovery = signature_recovery(de)
+print(recovery)
 
-    print("\n--- Training Random Forest + XGBoost/GB models ---")
-    train_models.train_and_evaluate()
+print("\n=== Cross-validated classifier on discovered signature ===")
+clf_result = cross_validated_classifier(data["transcriptomic"], data["clinical"], recovery["discovered_genes"])
+print(clf_result)
 
-    print("\n--- Clinician decision-support demo on held-out patients ---")
-    clinician_decision_support.demo()
+summary = {
+    "total_records": total_records,
+    "fusion_reconciliation_pct": validation["reconciliation_pct"],
+    "n_signature_genes_discovered": recovery["n_discovered"],
+    "n_true_signature_recovered": recovery["n_true_signature_recovered"],
+    "n_true_signature_total": recovery["n_true_signature_total"],
+    "classifier_mean_cv_accuracy": clf_result["mean_cv_accuracy"],
+}
+with open("results/summary.json", "w") as f:
+    json.dump(summary, f, indent=2)
 
-    print("\n--- Generating figures ---")
-    make_figures.main()
-
-
-if __name__ == "__main__":
-    main()
+print("\n=== Summary ===")
+print(json.dumps(summary, indent=2))
